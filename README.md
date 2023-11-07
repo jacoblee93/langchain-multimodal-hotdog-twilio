@@ -9,7 +9,7 @@ It leverages GPT-4V, [LangChain.js](https://github.com/langchain-ai/langchainjs)
 
 ## Setup
 
-First, you'll need to claim a phone number with MMS capability from [Twilio](https://twilio.com). You'll need to get it approved, which can unfortunately be a lengthy process.
+First, you'll need a phone number with MMS capability from [Twilio](https://twilio.com).
 
 You'll need to set your OpenAI key in `.dev.vars` and in your Cloudflare console:
 
