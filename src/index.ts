@@ -5,8 +5,6 @@ import { StringOutputParser } from "langchain/schema/output_parser";
 
 export interface Env {
   OPENAI_API_KEY: string;
-  TWILIO_ACCOUNT_SID: string;
-  TWILIO_AUTH_TOKEN: string;
 }
 
 /**
@@ -30,26 +28,6 @@ async function readRequestBody(request: Request): Promise<Record<string, any>> {
   }
 }
 
-const sendRequest = async ({ to, from, body, accountSid, authToken }: { to: string, from: string, body: string, accountSid: string, authToken: string }) => {
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${btoa(accountSid + ':' + authToken)}`
-    },
-    body: new URLSearchParams({
-      'To': to,
-      'From': from,
-      'Body': body
-    }).toString()
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-  return response.json();
-}
-
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const chat = new ChatOpenAI({
@@ -57,16 +35,13 @@ export default {
       modelName: "gpt-4-vision-preview",
     });
     const body = await readRequestBody(request);
-    const { From: originNumber, To: recipientNumber, MediaUrl0: imageUrl } = body;
+    const { MediaUrl0: imageUrl } = body;
     if (!imageUrl) {
-      await sendRequest({
-        body: `Send a picture and I'll tell you whether it's a hotdog or not!`,
-        to: originNumber,
-        from: recipientNumber,
-        accountSid: env.TWILIO_ACCOUNT_SID,
-        authToken: env.TWILIO_AUTH_TOKEN,
+      return new Response(`<Response><Message>Send a picture and I'll tell you whether it's a hotdog or not!</Message></Response>`, {
+        headers: {
+          "Content-Type": "text/xml",
+        }
       });
-      throw new Error("No image url found in incoming message.");
     }
     const prompt = ChatPromptTemplate.fromMessages([
       ["system", `You are an image classifer that only knows two words: "Yes" or "No". Answer the user question with only a one word answer. Do not respond with anything else.`],
@@ -89,15 +64,11 @@ export default {
         }),
       ],
     });
-    console.log("RESULT", result);
     const responseText = result === "Yes" ? `✅ Hotdog` : `❌ Not Hotdog`;
-    await sendRequest({
-      body: responseText,
-      to: originNumber,
-      from: recipientNumber,
-      accountSid: env.TWILIO_ACCOUNT_SID,
-      authToken: env.TWILIO_AUTH_TOKEN,
+		return new Response(`<Response><Message>${responseText}</Message></Response>`, {
+      headers: {
+        "Content-Type": "text/xml",
+      }
     });
-		return new Response('OK');
 	},
 };
